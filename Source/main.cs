@@ -4,6 +4,7 @@
 // GameData/YourMod/Misc/MusicDefinitions.cfg
 // GameData/YourMod/MiscConfigs/MusicDefinitions.cfg
 // GameData/YourMod/Configs/MusicDefinitions.cfg
+// GameData/YourMod/MusicDefinitions.cfg
 // The config file should contain:
 // BACKGROUND_MUSIC
 // {
@@ -19,12 +20,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine.Networking;
 using UnityEngine;
-using KSP.UI.Screens.DebugToolbar.Screens.Cheats;
 
 namespace ConfigBasedBackgroundMusic
 {
@@ -81,7 +78,6 @@ namespace ConfigBasedBackgroundMusic
                 GameObject.DontDestroyOnLoad(gameObject2);
                 gameObject2.name = "ConfigBasedMusicObject";
 
-                Debug.LogError(modules.GetNodes());
                 foreach (ConfigNode node in modules.GetNodes("BACKGROUND_MUSIC"))
                 {
                     path = node.GetValue("path");
