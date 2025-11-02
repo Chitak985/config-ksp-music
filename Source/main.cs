@@ -1,20 +1,17 @@
 // Usage:
-// Make a config file in one of these locations:
-// GameData/YourMod/Patches/MusicDefinitions.cfg
-// GameData/YourMod/Misc/MusicDefinitions.cfg
-// GameData/YourMod/MiscConfigs/MusicDefinitions.cfg
-// GameData/YourMod/Configs/MusicDefinitions.cfg
-// GameData/YourMod/MusicDefinitions.cfg
+// Make a config file in GameData/YourMod/MusicDefinitions.cfg  (replace YourMod with your mod folder name)
 // The config file should contain:
 // BACKGROUND_MUSIC
 // {
 //     path = YourMod/PathToFile/YourAudioFile.wav
 //     planet = PlanetName
 // }
-// The audio file should be in WAV format.
-// The mod will play the specified audio file as background music when the vessel is over the specified planet.
 // Replace PlanetName with the actual name of the planet (e.g., Kerbin).
 // Replace path with the relative path to the audio file within GameData, such as Almajara-Core/Music/1.wav
+// Multiple BACKGROUND_MUSIC entries can be made in the same config file for different planets and audio files.
+// Only one audio should be specified per planet.
+// The audio file should be in WAV format.
+// The mod will play the specified audio file as background music when the vessel is over the specified planet.
 
 using System;
 using System.Collections;
@@ -38,6 +35,7 @@ namespace ConfigBasedBackgroundMusic
 
         public string path;
         public string planet;
+        public List<GameObject> musicObjects = new List<GameObject>();  // List of GameObjects used for music
 
         public void Start()
         {
@@ -46,108 +44,77 @@ namespace ConfigBasedBackgroundMusic
             {
                 if (File.Exists(modPath + "/MusicDefinitions.cfg"))
                 {
-                    modules = ConfigNode.Load(modPath + "/MusicDefinitions.cfg");
-                    break;
+                    gameObject2 = new GameObject();
+                    GameObject.DontDestroyOnLoad(gameObject2);
+                    musicObjects.Add(gameObject2);
+
+                    foreach (ConfigNode node in ConfigNode.Load(modPath + "/MusicDefinitions.cfg").GetNodes("BACKGROUND_MUSIC"))
+                    {
+                        path = node.GetValue("path");
+                        planet = node.GetValue("planet");
+                    }
+                    gameObject2.name = "ConfigMusic"+planet;
+
+                    source = gameObject2.AddComponent<AudioSource>();
+
+                    // Audio achieves god mode
+                    source.spatialBlend = 0;
+                    source.dopplerLevel = 0;
+                    source.loop = false;
+
+                    // Disable stock music
+                    music = MusicLogic.fetch;
+                    emptySongsList = new List<AudioClip>();
+                    emptySongsList.Add(AudioClip.Create("none", 44100, 1, 44100, false));
+                    music.audio1.Stop();
+                    stockPlaylist = music.spacePlaylist;
+                    music.spacePlaylist = emptySongsList;
+
+                    // Get audio and assign it to source
+                    StartCoroutine(GetAudioClip(source));
                 }
-                if (File.Exists(modPath + "/Patches/MusicDefinitions.cfg"))
-                {
-                    modules = ConfigNode.Load(modPath + "/Patches/MusicDefinitions.cfg");
-                    break;
-                }
-                if (File.Exists(modPath + "/Misc/MusicDefinitions.cfg"))
-                {
-                    modules = ConfigNode.Load(modPath + "/Misc/MusicDefinitions.cfg");
-                    break;
-                }
-                if (File.Exists(modPath + "/MiscConfigs/MusicDefinitions.cfg"))
-                {
-                    modules = ConfigNode.Load(modPath + "/MiscConfigs/MusicDefinitions.cfg");
-                    break;
-                }
-                if (File.Exists(modPath + "/Configs/MusicDefinitions.cfg"))
-                {
-                    modules = ConfigNode.Load(modPath + "/Configs/MusicDefinitions.cfg");
-                    break;
-                }
-            }
-
-            if (modules != null)
-            {
-                // Create game object for music
-                gameObject2 = new GameObject();
-                GameObject.DontDestroyOnLoad(gameObject2);
-                gameObject2.name = "ConfigBasedMusicObject";
-
-                foreach (ConfigNode node in modules.GetNodes("BACKGROUND_MUSIC"))
-                {
-                    path = node.GetValue("path");
-                    planet = node.GetValue("planet");
-                }
-
-                // Create audio source
-                source = gameObject2.AddComponent<AudioSource>();
-
-                // Audio achieves god mode
-                source.spatialBlend = 0;
-                source.dopplerLevel = 0;
-                source.loop = false;
-
-                // Disable stock music
-                music = MusicLogic.fetch;
-                emptySongsList = new List<AudioClip>();
-                emptySongsList.Add(AudioClip.Create("none", 44100, 1, 44100, false));
-                music.audio1.Stop();
-                stockPlaylist = music.spacePlaylist;
-                music.spacePlaylist = emptySongsList;
-
-                // Get audio
-                StartCoroutine(GetAudioClip());
-
-                // Set up audio
-                source.clip = myClip;
-                source.loop = true;
-                source.time = 0;
             }
         }
 
-        IEnumerator GetAudioClip() // Gets the audio clip from file
+        IEnumerator GetAudioClip(AudioSource source) // Gets the audio clip from file
         {
             using (UnityWebRequest www = UnityWebRequestMultimedia.GetAudioClip("file:///"+ KSPUtil.ApplicationRootPath + "GameData/" + path, AudioType.WAV))
             {
                 yield return www.SendWebRequest();
 
-                myClip = DownloadHandlerAudioClip.GetContent(www);
+                source.clip = DownloadHandlerAudioClip.GetContent(www); ;
+                source.loop = true;
+                source.time = 0;
             }
         }
 
         public void FixedUpdate()
         {
-            // Add clip if not added (happens when the request doesn't complete fast enough)
-            if (source.clip == null)
-                source.clip = myClip;
-
-            // Does planet exist?
-            CelestialBody BODYNAME = null;
-            foreach (var b in FlightGlobals.Bodies)
+            foreach (GameObject obj in musicObjects)
             {
-                if (b.name == planet)
-                {
-                    BODYNAME = b;
-                    break;
-                }
-            }
+                source = obj.GetComponent<AudioSource>();
 
-            //If Sorut exists, play music when over Sorut
-            if (BODYNAME != null)
-            {
-                if (FlightGlobals.ActiveVessel.mainBody == BODYNAME) // Is over Sorut?
+                CelestialBody BODYNAME = null;
+                foreach (var b in FlightGlobals.Bodies)
                 {
-                    if (!source.isPlaying) source.Play();  // Play music if not already playing
+                    if ("ConfigMusic"+b.name == obj.name)
+                    {
+                        BODYNAME = b;
+                        break;
+                    }
                 }
-                else
+
+                if (BODYNAME != null)
                 {
-                    source.Stop();  // Stop music if not over Sorut
-                    music.spacePlaylist = stockPlaylist;  // Restore stock music
+                    if (FlightGlobals.ActiveVessel.mainBody == BODYNAME) // Check if the vessel is over the specified planet
+                    {
+                        if (!source.isPlaying) source.Play();  // Play music if over the planet and is not already playing
+                    }
+                    else
+                    {
+                        source.Stop();  // Stop music if not over the planet
+                        music.spacePlaylist = stockPlaylist;  // Restore stock music
+                    }
                 }
             }
         }
@@ -155,8 +122,11 @@ namespace ConfigBasedBackgroundMusic
         public void onDestroy()
         {
             // Clean up when exiting flight scene
-            gameObject2.DestroyGameObject();
-            source.Stop();
+            foreach (GameObject obj in musicObjects)
+            {
+                obj.GetComponent<AudioSource>().Stop();
+                obj.DestroyGameObject();
+            }
             music.spacePlaylist = stockPlaylist;
         }
     }
