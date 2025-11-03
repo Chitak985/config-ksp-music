@@ -3,6 +3,7 @@
 // The config file should contain:
 // BACKGROUND_MUSIC
 // {
+//     type = WAV
 //     path = YourMod/PathToFile/YourAudioFile.wav
 //     planet = PlanetName
 // }
@@ -12,6 +13,14 @@
 // Only one audio should be specified per planet.
 // The audio file should be in WAV format.
 // The mod will play the specified audio file as background music when the vessel is over the specified planet.
+// Music types:
+// WAV - Default, loads up an external file. Requires "path".
+// BUILTIN/VAB - Uses the built-in music for the VAB.
+// BUILTIN/SPH - Uses the built-in music for the SPH.
+// BUILTIN/TrackingStation - Uses the built-in music for the tracking station.
+// BUILTIN/SpaceCenterDay - Uses the built-in music for the Space Center during the day.
+// BUILTIN/SpaceCenterNight - Uses the built-in music for the Space Center during the night.
+
 
 using System;
 using System.Collections;
@@ -19,6 +28,7 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine.Networking;
 using UnityEngine;
+using System.Diagnostics;
 
 namespace ConfigBasedBackgroundMusic
 {
@@ -35,43 +45,63 @@ namespace ConfigBasedBackgroundMusic
 
         public string path;
         public string planet;
+        public string type;
+
         public List<GameObject> musicObjects = new List<GameObject>();  // List of GameObjects used for music
 
         public void Start()
         {
+            music = MusicLogic.fetch;
+            stockPlaylist = music.spacePlaylist;
+            emptySongsList = new List<AudioClip> { AudioClip.Create("none", 44100, 1, 44100, false) };
+
             string[] foldersMods = Directory.GetDirectories(KSPUtil.ApplicationRootPath + "GameData");
             foreach (string modPath in foldersMods)
             {
                 if (File.Exists(modPath + "/MusicDefinitions.cfg"))
                 {
-                    gameObject2 = new GameObject();
-                    GameObject.DontDestroyOnLoad(gameObject2);
-                    musicObjects.Add(gameObject2);
-
                     foreach (ConfigNode node in ConfigNode.Load(modPath + "/MusicDefinitions.cfg").GetNodes("BACKGROUND_MUSIC"))
                     {
-                        path = node.GetValue("path");
+                        // Create the game object
+                        gameObject2 = new GameObject();
+                        GameObject.DontDestroyOnLoad(gameObject2);
+                        musicObjects.Add(gameObject2);
+
+                        // Get the nodes
                         planet = node.GetValue("planet");
+                        type = node.GetValue("type");
+                        if(type == "WAV")
+                            path = node.GetValue("path");
+
+                        // Rename the object
+                        gameObject2.name = "ConfigMusic" + planet;
+
+                        // Create the audio source
+                        source = gameObject2.AddComponent<AudioSource>();
+
+                        // Audio achieves god mode
+                        source.spatialBlend = 0;
+                        source.dopplerLevel = 0;
+                        source.loop = false;
+
+                        // Disable stock music
+                        music.audio1.Stop();
+                        music.spacePlaylist = emptySongsList;
+
+                        // Get audio if needed
+                        if(type == "WAV" || type == "")
+                        {
+                            StartCoroutine(GetAudioClip(source));
+                        }
+                        else
+                        {
+                            if (type == "BUILTIN/VAB")
+                                source.clip = null;
+
+                            source.loop = true;
+                            source.time = 0;
+                        }
                     }
-                    gameObject2.name = "ConfigMusic"+planet;
-
-                    source = gameObject2.AddComponent<AudioSource>();
-
-                    // Audio achieves god mode
-                    source.spatialBlend = 0;
-                    source.dopplerLevel = 0;
-                    source.loop = false;
-
-                    // Disable stock music
-                    music = MusicLogic.fetch;
-                    emptySongsList = new List<AudioClip>();
-                    emptySongsList.Add(AudioClip.Create("none", 44100, 1, 44100, false));
-                    music.audio1.Stop();
-                    stockPlaylist = music.spacePlaylist;
-                    music.spacePlaylist = emptySongsList;
-
-                    // Get audio and assign it to source
-                    StartCoroutine(GetAudioClip(source));
                 }
             }
         }
@@ -82,7 +112,7 @@ namespace ConfigBasedBackgroundMusic
             {
                 yield return www.SendWebRequest();
 
-                source.clip = DownloadHandlerAudioClip.GetContent(www); ;
+                source.clip = DownloadHandlerAudioClip.GetContent(www);
                 source.loop = true;
                 source.time = 0;
             }
