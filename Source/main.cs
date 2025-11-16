@@ -6,12 +6,14 @@
 //     type = WAV
 //     path = YourMod/PathToFile/YourAudioFile.wav
 //     planet = PlanetName
+//     biome = BiomeName
 // }
 // Replace PlanetName with the actual name of the planet (e.g., Kerbin).
+// Replace BiomeName with the name of the biome (do not include parameter if you want to make the music heard everywhere around the planet)
 // Replace path with the relative path to the audio file within GameData, such as Almajara-Core/Music/1.wav
 // Multiple BACKGROUND_MUSIC entries can be made in the same config file for different planets and audio files.
-// Only one audio should be specified per planet.
-// The audio file should be in WAV format.
+// Only one audio should be specified per planet, because multiple songs for the same planet would all play at once.
+// The audio file must be in WAV format, otherwise music won't play.
 // The mod will play the specified audio file as background music when the vessel is over the specified planet.
 // Music types:
 // WAV - Default, loads up an external file. Requires "path".
@@ -20,7 +22,6 @@
 // BUILTIN/TrackingStation - Uses the built-in music for the tracking station.
 // BUILTIN/SpaceCenterDay - Uses the built-in music for the Space Center during the day.
 // BUILTIN/SpaceCenterNight - Uses the built-in music for the Space Center during the night.
-
 
 using System;
 using System.Collections;
@@ -46,6 +47,7 @@ namespace ConfigBasedBackgroundMusic
         public string path;
         public string planet;
         public string type;
+        public string biome;
 
         public List<GameObject> musicObjects = new List<GameObject>();  // List of GameObjects used for music
 
@@ -72,9 +74,10 @@ namespace ConfigBasedBackgroundMusic
                         type = node.GetValue("type");
                         if(type == "WAV")
                             path = node.GetValue("path");
+                        biome = node.GetValue("biome");
 
                         // Rename the object
-                        gameObject2.name = "ConfigMusic" + planet;
+                        gameObject2.name = "ConfigMusic" + planet + biome;
 
                         // Create the audio source
                         source = gameObject2.AddComponent<AudioSource>();
@@ -127,10 +130,13 @@ namespace ConfigBasedBackgroundMusic
                 CelestialBody BODYNAME = null;
                 foreach (var b in FlightGlobals.Bodies)
                 {
-                    if ("ConfigMusic"+b.name == obj.name)
+                    foreach (var b2 in b.Biomes)
                     {
-                        BODYNAME = b;
-                        break;
+                        if ("ConfigMusic"+b.name+b2.mame == obj.name)
+                        {
+                            BODYNAME = b;
+                            break;
+                        }
                     }
                 }
 
