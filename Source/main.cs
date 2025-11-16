@@ -75,9 +75,16 @@ namespace ConfigBasedBackgroundMusic
                         if(type == "WAV")
                             path = node.GetValue("path");
                         biome = node.GetValue("biome");
-
+                        
                         // Rename the object
-                        gameObject2.name = "ConfigMusic" + planet + biome;
+                        if(biome == null)
+                        {
+                            gameObject2.name = "ConfigMusic" + planet + "*";
+                        }
+                        else
+                        {
+                            gameObject2.name = "ConfigMusic" + planet + biome;
+                        }
 
                         // Create the audio source
                         source = gameObject2.AddComponent<AudioSource>();
@@ -127,24 +134,63 @@ namespace ConfigBasedBackgroundMusic
             {
                 source = obj.GetComponent<AudioSource>();
 
-                CelestialBody BODYNAME = null;
+                CelestialBody BODY = null;
+                MiniBiome BIOME = null;
+                bool playMusic = null;
                 foreach (var b in FlightGlobals.Bodies)
                 {
-                    foreach (var b2 in b.Biomes)
+                    foreach (var b2 in b.MiniBiomes)
                     {
-                        if ("ConfigMusic"+b.name+b2.mame == obj.name)
+                        if ("ConfigMusic"+b.name+b2.name == obj.name)
                         {
-                            BODYNAME = b;
+                            BODY = b;
+                            BIOME = b2;
                             break;
                         }
                     }
                 }
 
-                if (BODYNAME != null)
+                if (BODY == null)
                 {
-                    if (FlightGlobals.ActiveVessel.mainBody == BODYNAME) // Check if the vessel is over the specified planet
+                    foreach (var b in FlightGlobals.Bodies)
                     {
-                        if (!source.isPlaying) source.Play();  // Play music if over the planet and is not already playing
+                        if ("ConfigMusic"+b.name+"*" == obj.name)
+                        {
+                            BODY = b;
+                            break;
+                        }
+                    }
+                }
+
+                if (BODY != null)
+                {
+                    if (FlightGlobals.ActiveVessel.mainBody == BODY) // Check if the vessel is over the specified planet
+                    {
+                        if (!source.isPlaying)
+                        {
+                            if (BIOME == null)
+                            {
+                                source.Play();  // Play music if over the planet and is not already playing
+                            }
+                            else
+                            {
+                                playMusic = false;
+                                foreach (var b2 in FlightGlobals.ActiveVessel.mainBody.MiniBiomes)
+                                {
+                                    if (b2 == BIOME)
+                                    {
+                                        playMusic = true;
+                                        source.Play();  // Play music if over the planet and is not already playing
+                                        break
+                                    }
+                                }
+                                if (!playMusic)
+                                {
+                                    source.Stop();  // Stop music if not over the biome
+                                    music.spacePlaylist = stockPlaylist;  // Restore stock music
+                                }
+                            }
+                        }
                     }
                     else
                     {
