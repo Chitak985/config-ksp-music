@@ -72,12 +72,12 @@ namespace ConfigBasedBackgroundMusic
                         // Get the nodes
                         planet = node.GetValue("planet");
                         type = node.GetValue("type");
-                        if(type == "WAV")
+                        if (type == "WAV")
                             path = node.GetValue("path");
                         biome = node.GetValue("biome");
-                        
+
                         // Rename the object
-                        if(biome == null)
+                        if (biome == null)
                         {
                             gameObject2.name = "ConfigMusic" + planet + "*";
                         }
@@ -99,7 +99,7 @@ namespace ConfigBasedBackgroundMusic
                         music.spacePlaylist = emptySongsList;
 
                         // Get audio if needed
-                        if(type == "WAV" || type == "")
+                        if (type == "WAV" || type == "")
                         {
                             StartCoroutine(GetAudioClip(source));
                         }
@@ -118,7 +118,7 @@ namespace ConfigBasedBackgroundMusic
 
         IEnumerator GetAudioClip(AudioSource source) // Gets the audio clip from file
         {
-            using (UnityWebRequest www = UnityWebRequestMultimedia.GetAudioClip("file:///"+ KSPUtil.ApplicationRootPath + "GameData/" + path, AudioType.WAV))
+            using (UnityWebRequest www = UnityWebRequestMultimedia.GetAudioClip("file:///" + KSPUtil.ApplicationRootPath + "GameData/" + path, AudioType.WAV))
             {
                 yield return www.SendWebRequest();
 
@@ -135,13 +135,13 @@ namespace ConfigBasedBackgroundMusic
                 source = obj.GetComponent<AudioSource>();
 
                 CelestialBody BODY = null;
-                var BIOME = null;
-                
+                CBAttributeMapSO.MapAttribute BIOME = null;
+
                 foreach (var b in FlightGlobals.Bodies)
                 {
                     foreach (var b2 in b.BiomeMap.Attributes)
                     {
-                        if ("ConfigMusic"+b.name+b2.name == obj.name)
+                        if ("ConfigMusic" + b.name + b2 == obj.name)
                         {
                             BODY = b;
                             BIOME = b2;
@@ -154,14 +154,14 @@ namespace ConfigBasedBackgroundMusic
                 {
                     foreach (var b in FlightGlobals.Bodies)
                     {
-                        if ("ConfigMusic"+b.name+"*" == obj.name)
+                        if ("ConfigMusic" + b.name + "*" == obj.name)
                         {
                             BODY = b;
                             break;
                         }
                     }
                 }
-                
+
 
                 if (BODY != null)
                 {
