@@ -135,11 +135,11 @@ namespace ConfigBasedBackgroundMusic
                 source = obj.GetComponent<AudioSource>();
 
                 CelestialBody BODY = null;
-                MiniBiome BIOME = null;
-                bool playMusic = null;
+                var BIOME = null;
+                
                 foreach (var b in FlightGlobals.Bodies)
                 {
-                    foreach (var b2 in b.MiniBiomes)
+                    foreach (var b2 in b.BiomeMap.Attributes)
                     {
                         if ("ConfigMusic"+b.name+b2.name == obj.name)
                         {
@@ -161,6 +161,7 @@ namespace ConfigBasedBackgroundMusic
                         }
                     }
                 }
+                
 
                 if (BODY != null)
                 {
@@ -174,17 +175,12 @@ namespace ConfigBasedBackgroundMusic
                             }
                             else
                             {
-                                playMusic = false;
-                                foreach (var b2 in FlightGlobals.ActiveVessel.mainBody.MiniBiomes)
+                                if (BIOME == FlightGlobals.ActiveVessel.mainBody.BiomeMap.GetAtt(FlightGlobals.ActiveVessel.latitude * 0.01745329238474369, FlightGlobals.ActiveVessel.longitude * 0.01745329238474369))
                                 {
-                                    if (b2 == BIOME)
-                                    {
-                                        playMusic = true;
-                                        source.Play();  // Play music if over the planet and is not already playing
-                                        break
-                                    }
+                                    source.Play();  // Play music if over the planet and is not already playing
+                                    break;
                                 }
-                                if (!playMusic)
+                                else
                                 {
                                     source.Stop();  // Stop music if not over the biome
                                     music.spacePlaylist = stockPlaylist;  // Restore stock music
