@@ -30,6 +30,7 @@ using System.IO;
 using UnityEngine.Networking;
 using UnityEngine;
 using System.Diagnostics;
+using System.Diagnostics.Eventing.Reader;
 
 namespace ConfigBasedBackgroundMusic
 {
@@ -79,11 +80,11 @@ namespace ConfigBasedBackgroundMusic
                         // Rename the object
                         if (biome == null)
                         {
-                            gameObject2.name = "ConfigMusic" + planet + "*";
+                            gameObject2.name = "ConfigMusic" + "|" + planet + "|*";
                         }
                         else
                         {
-                            gameObject2.name = "ConfigMusic" + planet + biome;
+                            gameObject2.name = "ConfigMusic" + "|" + planet + "|" + biome;
                         }
 
                         // Create the audio source
@@ -134,65 +135,53 @@ namespace ConfigBasedBackgroundMusic
             {
                 source = obj.GetComponent<AudioSource>();
 
-                CelestialBody BODY = null;
-                CBAttributeMapSO.MapAttribute BIOME = null;
-
-                foreach (var b in FlightGlobals.Bodies)
+                // Error handling
+                if (obj.name.Split('|').Length != 3)
                 {
-                    foreach (var b2 in b.BiomeMap.Attributes)
-                    {
-                        if ("ConfigMusic" + b.name + b2 == obj.name)
-                        {
-                            BODY = b;
-                            BIOME = b2;
-                            break;
-                        }
-                    }
+                    UnityEngine.Debug.LogError("ConfigBasedBackgroundMusic: Invalid object name format: " + obj.name);
+                    continue;
+                }
+                if (obj.name.Split('|')[0] != "ConfigMusic")
+                {
+                    UnityEngine.Debug.LogError("ConfigBasedBackgroundMusic: Invalid object name header: " + obj.name.Split('|')[0]);
+                    continue;
                 }
 
-                if (BODY == null)
+                string BODY = obj.name.Split('|')[1];
+                string BIOME = obj.name.Split('|')[2];
+
+                if (FlightGlobals.ActiveVessel.mainBody.name == BODY) // Check if the vessel is over the specified planet
                 {
-                    foreach (var b in FlightGlobals.Bodies)
+                    if (!source.isPlaying)
                     {
-                        if ("ConfigMusic" + b.name + "*" == obj.name)
+                        if (BIOME == "*")
                         {
-                            BODY = b;
-                            break;
+                            source.Play();  // Play music if over the planet and is not already playing
+                            music.audio1.Stop();                   // Disable stock music
+                            music.spacePlaylist = emptySongsList;  // Disable stock music
                         }
-                    }
-                }
-
-
-                if (BODY != null)
-                {
-                    if (FlightGlobals.ActiveVessel.mainBody == BODY) // Check if the vessel is over the specified planet
-                    {
-                        if (!source.isPlaying)
+                        else
                         {
-                            if (BIOME == null)
+                            if (BIOME == FlightGlobals.ActiveVessel.mainBody.BiomeMap.GetAtt(FlightGlobals.ActiveVessel.latitude * 0.01745329238474369, FlightGlobals.ActiveVessel.longitude * 0.01745329238474369).name)
                             {
                                 source.Play();  // Play music if over the planet and is not already playing
+                                music.audio1.Stop();                   // Disable stock music
+                                music.spacePlaylist = emptySongsList;  // Disable stock music
                             }
                             else
                             {
-                                if (BIOME == FlightGlobals.ActiveVessel.mainBody.BiomeMap.GetAtt(FlightGlobals.ActiveVessel.latitude * 0.01745329238474369, FlightGlobals.ActiveVessel.longitude * 0.01745329238474369))
-                                {
-                                    source.Play();  // Play music if over the planet and is not already playing
-                                    break;
-                                }
-                                else
-                                {
-                                    source.Stop();  // Stop music if not over the biome
-                                    music.spacePlaylist = stockPlaylist;  // Restore stock music
-                                }
+                                source.Stop();  // Stop music if not over the biome
+                                music.audio1.Play();                  // Restore stock music
+                                music.spacePlaylist = stockPlaylist;  // Restore stock music
                             }
                         }
                     }
-                    else
-                    {
-                        source.Stop();  // Stop music if not over the planet
-                        music.spacePlaylist = stockPlaylist;  // Restore stock music
-                    }
+                }
+                else
+                {
+                    source.Stop();  // Stop music if not over the planet
+                    music.audio1.Play();                  // Restore stock music
+                    music.spacePlaylist = stockPlaylist;  // Restore stock music
                 }
             }
         }
