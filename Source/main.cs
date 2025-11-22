@@ -50,6 +50,8 @@ namespace ConfigBasedBackgroundMusic
         public string type;
         public string biome;
 
+        public int pauseCounter = 0;
+
         public List<GameObject> musicObjects = new List<GameObject>();  // List of GameObjects used for music
 
         public void Start()
@@ -67,7 +69,7 @@ namespace ConfigBasedBackgroundMusic
                     {
                         // Create the game object
                         gameObject2 = new GameObject();
-                        GameObject.DontDestroyOnLoad(gameObject2);
+                        //GameObject.DontDestroyOnLoad(gameObject2);
                         musicObjects.Add(gameObject2);
 
                         // Get the nodes
@@ -131,6 +133,7 @@ namespace ConfigBasedBackgroundMusic
 
         public void FixedUpdate()
         {
+            pauseCounter++;
             foreach (GameObject obj in musicObjects)
             {
                 source = obj.GetComponent<AudioSource>();
@@ -150,12 +153,15 @@ namespace ConfigBasedBackgroundMusic
                 string BODY = obj.name.Split('|')[1];
                 string BIOME = obj.name.Split('|')[2];
 
+                source.volume = GameSettings.MUSIC_VOLUME;
+
                 if (FlightGlobals.ActiveVessel.mainBody.name == BODY) // Check if the vessel is over the specified planet
                 {
                     if (!source.isPlaying)
                     {
                         if (BIOME == "*")
                         {
+                            UnityEngine.Debug.LogError("Planet music start!");
                             source.Play();  // Play music if over the planet and is not already playing
                             music.audio1.Stop();                   // Disable stock music
                             music.spacePlaylist = emptySongsList;  // Disable stock music
@@ -164,24 +170,31 @@ namespace ConfigBasedBackgroundMusic
                         {
                             if (BIOME == FlightGlobals.ActiveVessel.mainBody.BiomeMap.GetAtt(FlightGlobals.ActiveVessel.latitude * 0.01745329238474369, FlightGlobals.ActiveVessel.longitude * 0.01745329238474369).name)
                             {
-                                source.Play();  // Play music if over the planet and is not already playing
+                                UnityEngine.Debug.LogError("Biome music start!");
+                                source.Play();  // Play music if over the biome and is not already playing
                                 music.audio1.Stop();                   // Disable stock music
                                 music.spacePlaylist = emptySongsList;  // Disable stock music
-                            }
-                            else
-                            {
-                                source.Stop();  // Stop music if not over the biome
-                                music.audio1.Play();                  // Restore stock music
-                                music.spacePlaylist = stockPlaylist;  // Restore stock music
                             }
                         }
                     }
                 }
                 else
                 {
+                    UnityEngine.Debug.LogError("Planet music stop!");
                     source.Stop();  // Stop music if not over the planet
                     music.audio1.Play();                  // Restore stock music
                     music.spacePlaylist = stockPlaylist;  // Restore stock music
+                }
+            }
+
+            foreach (GameObject obj in musicObjects)
+            {
+                if(pauseCounter > 1000)
+                {
+                    source.Pause();  // Pause all music sources to make them load again
+                    music.audio1.Play();                  // Restore stock music
+                    music.spacePlaylist = stockPlaylist;  // Restore stock music
+                    pauseCounter = 0;
                 }
             }
         }
@@ -191,6 +204,7 @@ namespace ConfigBasedBackgroundMusic
             // Clean up when exiting flight scene
             foreach (GameObject obj in musicObjects)
             {
+                UnityEngine.Debug.LogError("All music stop!");
                 obj.GetComponent<AudioSource>().Stop();
                 obj.DestroyGameObject();
             }
