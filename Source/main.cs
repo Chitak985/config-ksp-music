@@ -67,17 +67,32 @@ namespace ConfigBasedBackgroundMusic
                 {
                     foreach (ConfigNode node in ConfigNode.Load(modPath + "/MusicDefinitions.cfg").GetNodes("BACKGROUND_MUSIC"))
                     {
-                        // Create the game object
-                        gameObject2 = new GameObject();
-                        //GameObject.DontDestroyOnLoad(gameObject2);
-                        musicObjects.Add(gameObject2);
-
                         // Get the nodes
                         planet = node.GetValue("planet");
                         type = node.GetValue("type");
                         if (type == "WAV")
                             path = node.GetValue("path");
                         biome = node.GetValue("biome");
+
+                        // Check for duplicate game objects
+                        foreach (GameObject obj in musicObjects)
+                        {
+                            if (biome == null)
+                            {
+                                if (obj.name == "ConfigMusic" + "|" + planet + "|*")
+                                    continue;
+                            }
+                            else
+                            {
+                                if (obj.name == "ConfigMusic" + "|" + planet + "|" + biome)
+                                    continue;
+                            }
+                        }
+
+                        // Create the game object
+                        gameObject2 = new GameObject();
+                        //GameObject.DontDestroyOnLoad(gameObject2);
+                        musicObjects.Add(gameObject2);
 
                         // Rename the object
                         if (biome == null)
@@ -165,6 +180,13 @@ namespace ConfigBasedBackgroundMusic
                             source.Play();  // Play music if over the planet and is not already playing
                             music.audio1.Stop();                   // Disable stock music
                             music.spacePlaylist = emptySongsList;  // Disable stock music
+                            foreach (GameObject otherObj in musicObjects)
+                            {
+                                if (otherObj != obj)
+                                {
+                                    otherObj.GetComponent<AudioSource>().Stop();
+                                }
+                            }
                         }
                         else
                         {
@@ -174,6 +196,13 @@ namespace ConfigBasedBackgroundMusic
                                 source.Play();  // Play music if over the biome and is not already playing
                                 music.audio1.Stop();                   // Disable stock music
                                 music.spacePlaylist = emptySongsList;  // Disable stock music
+                                foreach (GameObject otherObj in musicObjects)
+                                {
+                                    if (otherObj != obj)
+                                    {
+                                        otherObj.GetComponent<AudioSource>().Stop();
+                                    }
+                                }
                             }
                         }
                     }
@@ -182,19 +211,8 @@ namespace ConfigBasedBackgroundMusic
                 {
                     UnityEngine.Debug.LogError("Planet music stop!");
                     source.Stop();  // Stop music if not over the planet
-                    music.audio1.Play();                  // Restore stock music
-                    music.spacePlaylist = stockPlaylist;  // Restore stock music
-                }
-            }
-
-            foreach (GameObject obj in musicObjects)
-            {
-                if(pauseCounter > 1000)
-                {
-                    source.Pause();  // Pause all music sources to make them load again
-                    music.audio1.Play();                  // Restore stock music
-                    music.spacePlaylist = stockPlaylist;  // Restore stock music
-                    pauseCounter = 0;
+                    music.audio1.Play();                   // Enable stock music
+                    music.spacePlaylist = stockPlaylist;   // Enable stock music
                 }
             }
         }
@@ -204,7 +222,7 @@ namespace ConfigBasedBackgroundMusic
             // Clean up when exiting flight scene
             foreach (GameObject obj in musicObjects)
             {
-                UnityEngine.Debug.LogError("All music stop!");
+                //UnityEngine.Debug.LogError("All music stop!");
                 obj.GetComponent<AudioSource>().Stop();
                 obj.DestroyGameObject();
             }
