@@ -1,5 +1,5 @@
 // Usage:
-// Make a config file in GameData/YourMod/MusicDefinitions.cfg  (replace YourMod with your mod folder name)
+// Make a config file somewhere in GameData. The name and location do not matter, but the contents do.
 // The config file should contain:
 // BACKGROUND_MUSIC
 // {
@@ -15,6 +15,7 @@
 // Only one audio should be specified per planet, because multiple songs for the same planet would all play at once.
 // The audio file must be in WAV format, otherwise music won't play.
 // The mod will play the specified audio file as background music when the vessel is over the specified planet.
+// ModuleManager does NOT work with the mod and its patches have no effect.
 // Music types:
 // WAV - Default, loads up an external file. Requires "path".
 // BUILTIN/VAB - Uses the built-in music for the VAB.
@@ -60,75 +61,71 @@ namespace ConfigBasedBackgroundMusic
             stockPlaylist = music.spacePlaylist;
             emptySongsList = new List<AudioClip> { AudioClip.Create("none", 44100, 1, 44100, false) };
 
-            string[] foldersMods = Directory.GetDirectories(KSPUtil.ApplicationRootPath + "GameData");
-            foreach (string modPath in foldersMods)
+            foreach (string file in Directory.GetFiles(KSPUtil.ApplicationRootPath + "GameData", "*.cfg", SearchOption.AllDirectories))
             {
-                if (File.Exists(modPath + "/MusicDefinitions.cfg"))
+                foreach (ConfigNode node in ConfigNode.Load(file).GetNodes("BACKGROUND_MUSIC"))
                 {
-                    foreach (ConfigNode node in ConfigNode.Load(modPath + "/MusicDefinitions.cfg").GetNodes("BACKGROUND_MUSIC"))
+                    // Get the nodes
+                    planet = node.GetValue("planet");
+                    type = node.GetValue("type");
+                    if (type == "WAV")
+                        path = node.GetValue("path");
+                    biome = node.GetValue("biome");
+
+                    // Check for duplicate game objects
+                    foreach (GameObject obj in musicObjects)
                     {
-                        // Get the nodes
-                        planet = node.GetValue("planet");
-                        type = node.GetValue("type");
-                        if (type == "WAV")
-                            path = node.GetValue("path");
-                        biome = node.GetValue("biome");
-
-                        // Check for duplicate game objects
-                        foreach (GameObject obj in musicObjects)
-                        {
-                            if (biome == null)
-                            {
-                                if (obj.name == "ConfigMusic" + "|" + planet + "|*")
-                                    continue;
-                            }
-                            else
-                            {
-                                if (obj.name == "ConfigMusic" + "|" + planet + "|" + biome)
-                                    continue;
-                            }
-                        }
-
-                        // Create the game object
-                        gameObject2 = new GameObject();
-                        //GameObject.DontDestroyOnLoad(gameObject2);
-                        musicObjects.Add(gameObject2);
-
-                        // Rename the object
                         if (biome == null)
                         {
-                            gameObject2.name = "ConfigMusic" + "|" + planet + "|*";
+                            if (obj.name == "ConfigMusic" + "|" + planet + "|*")
+                                continue;
                         }
                         else
                         {
-                            gameObject2.name = "ConfigMusic" + "|" + planet + "|" + biome;
+                            if (obj.name == "ConfigMusic" + "|" + planet + "|" + biome)
+                                continue;
                         }
+                    }
 
-                        // Create the audio source
-                        source = gameObject2.AddComponent<AudioSource>();
+                    // Create the game object
+                    gameObject2 = new GameObject();
+                    //GameObject.DontDestroyOnLoad(gameObject2);
+                    musicObjects.Add(gameObject2);
 
-                        // Audio achieves god mode
-                        source.spatialBlend = 0;
-                        source.dopplerLevel = 0;
-                        source.loop = false;
+                    // Rename the object
+                    if (biome == null)
+                    {
+                        gameObject2.name = "ConfigMusic" + "|" + planet + "|*";
+                    }
+                    else
+                    {
+                        gameObject2.name = "ConfigMusic" + "|" + planet + "|" + biome;
+                    }
 
-                        // Disable stock music
-                        music.audio1.Stop();
-                        music.spacePlaylist = emptySongsList;
+                    // Create the audio source
+                    source = gameObject2.AddComponent<AudioSource>();
 
-                        // Get audio if needed
-                        if (type == "WAV" || type == "")
-                        {
-                            StartCoroutine(GetAudioClip(source));
-                        }
-                        else
-                        {
-                            if (type == "BUILTIN/VAB")
-                                source.clip = null;
+                    // Audio achieves god mode
+                    source.spatialBlend = 0;
+                    source.dopplerLevel = 0;
+                    source.loop = false;
 
-                            source.loop = true;
-                            source.time = 0;
-                        }
+                    // Disable stock music
+                    music.audio1.Stop();
+                    music.spacePlaylist = emptySongsList;
+
+                    // Get audio if needed
+                    if (type == "WAV" || type == "")
+                    {
+                        StartCoroutine(GetAudioClip(source));
+                    }
+                    else
+                    {
+                        if (type == "BUILTIN/VAB")
+                            source.clip = null;
+
+                        source.loop = true;
+                        source.time = 0;
                     }
                 }
             }
